@@ -3,16 +3,26 @@
 #include "console.h"
 #include <unistd.h>
 
-Emulator::Emulator(void) {
-  mem = new uint8_t[65536];
-  reset();
+MOS6502::MOS6502(void) {
+  memoryReadCallBack = NULL;
+  memoryWriteCallBack = NULL;
 }
 
-Emulator::~Emulator() {
-  delete mem;
+MOS6502::~MOS6502() {
 }
 
-int Emulator::reset() {
+int MOS6502::setMemoryReadCallBack(int (*cb)(int, int, uint8_t *)) {
+  if(cb == NULL) return -1;
+  memoryReadCallBack = cb;
+  return 0;
+}
+int MOS6502::setMemoryWriteCallBack(int (*cb)(int, int, const uint8_t *)) {
+  if(cb == NULL) return -1;
+  memoryWriteCallBack = cb;
+  return 0;
+}
+
+void MOS6502::reset() {
   counter = 0;
   cycle_counter = 0;
   reg_A = 0;
@@ -28,16 +38,10 @@ int Emulator::reset() {
   flag_Z = 0;
   data_bus = 0;
   addr_bus = 0;
-  memset(mem, 0, sizeof(mem));
-
-  loadRom((char*)"ROM/Woz Monitor.rom", 0xFF00);
-  loadRom((char*)"ROM/Integrated BASIC.hex", 0xE000);
-  loadRom((char*)"ROM/A1A90.BIN", 0x9000);
-
   reg_PC = ((uint16_t)readByte(0xfffd) << 8) | readByte(0xfffc);
 }
 
-void Emulator::IR_step() {
+void MOS6502::step() {
   reg_IR = readByte(reg_PC++);
   // if(cycle_counter >= 260000) {
   //   fprintf(fp, "\nAddr:%x Instruction:%2x ", (int)reg_PC - 1, (int)reg_IR);
@@ -75,72 +79,64 @@ void Emulator::IR_step() {
   }
 }
 
-void Emulator::cycle(int t) {
+void MOS6502::cycle(int t) {
   usleep(t);
 }
 
-uint8_t Emulator::LogicShiftRight(uint8_t origin) {
+uint8_t MOS6502::logicShiftRight(uint8_t origin) {
   flag_C = origin & 0x01;
   return origin >> 1;
 }
 
-void Emulator::readMem(char *buf, uint16_t addr, int len) {
-  memcpy(buf, mem + addr, len*sizeof(char));
-  addr_bus = addr;
+uint8_t MOS6502::readByte(uint16_t addr) {
+  uint8_t data = 0;
+  if(memoryReadCallBack != NULL) {
+    memoryReadCallBack(addr, 1, &data);
+    pin_RW = 1; //Read
+    addr_bus = addr;
+  } else fprintf(stderr, "MOS6502: Error reading memory.\n");
+  return data;
 }
 
-uint8_t Emulator::readByte(uint16_t addr) {
-  pin_RW = 1;
-  addr_bus = addr;
-  return mem[addr];
+void MOS6502::writeByte(uint8_t data, uint16_t addr) {
+  if(memoryWriteCallBack != NULL) {
+    memoryWriteCallBack(addr, 1, &data);
+    pin_RW = 0; //Write
+    addr_bus = addr;
+  } else fprintf(stderr, "MOS6502: Error writing memory.\n");
 }
 
-void Emulator::writeByte(uint8_t data, uint16_t addr) {
-  pin_RW = 0;
-  addr_bus = addr;
-  mem[addr] = data;
+uint16_t MOS6502::readWord(uint16_t addr) {
+  uint8_t dataH = 0, dataL = 0;
+  if(memoryReadCallBack != NULL) {
+    memoryReadCallBack(addr, 1, &dataL);
+    memoryReadCallBack(addr + 1, 1, &dataH);
+    pin_RW = 1;
+    addr_bus = addr;
+  } else fprintf(stderr, "MOS6502: Error reading memory.\n");
+  return ((uint16_t)dataH << 8) | dataL;
 }
 
-uint16_t Emulator::readWord(uint16_t addr) {
-  pin_RW = 1;
-  addr_bus = addr;
-  return (mem[addr + 1] << 8) | mem[addr];
+void MOS6502::writeWord(uint16_t data, uint16_t addr) {
+  if(memoryWriteCallBack != NULL) {
+    uint8_t dataH = (uint8_t)((data & 0xF0) >> 8);
+    uint8_t dataL = (uint8_t)(data & 0x0F);
+    memoryWriteCallBack(addr, 1, &dataL);
+    memoryWriteCallBack(addr + 1, 1, &dataH);
+    pin_RW = 0; //Write
+    addr_bus = addr;
+  } else fprintf(stderr, "MOS6502: Error writing memory.\n");
 }
 
-void Emulator::writeWord(uint16_t data, uint16_t addr) {
-  mem[addr] = (uint8_t)(data & 0x0F);
-  mem[addr + 1] = (uint8_t)((data & 0xF0) >> 8);
-  addr_bus = addr;
-  pin_RW = 0;
-}
 
-int Emulator::loadRom(char *filename, uint16_t addr) {
-  int len = 0;
-  ifstream romfile;
-  romfile.open(filename, ios::in|ios::binary);
-  if(!romfile) {
-    cout << "Failed to open ROM files." << endl;
-    return -1;
-  }
-  romfile.seekg(0, ios::end);
-  len = romfile.tellg();
-  if((addr + len) > 65536) {
-    cout << "Load ROM files failed: File too large." << endl;
-    return -1;
-  }
-  romfile.seekg(0);
-  romfile.read((char*)(mem + addr), len);
-  romfile.close();
-}
-
-void Emulator::check_N_Z(uint8_t value) {
+void MOS6502::checkNZ(uint8_t value) {
   if(value == 0) flag_Z = 1;
     else flag_Z = 0;
   if((value & 0x80) == 0x80) flag_N = 1;
     else flag_N = 0;
 }
 
-void Emulator::stack_push(uint8_t value) {
+void MOS6502::stackPush(uint8_t value) {
   writeByte(value, (uint16_t)(reg_SP | 0x0100));
   if(reg_SP >= 0x01) reg_SP--;
   else {
@@ -149,7 +145,7 @@ void Emulator::stack_push(uint8_t value) {
   }//Stack Overflow
 }
 
-uint8_t Emulator::stack_pop(void) {
+uint8_t MOS6502::stackPop(void) {
   if(reg_SP <= 0xfe) {
     reg_SP++;
     data_bus = readByte((uint16_t)(reg_SP | 0x0100));
@@ -162,19 +158,19 @@ uint8_t Emulator::stack_pop(void) {
   }
 }
 
-void Emulator::add(uint8_t value) {
+void MOS6502::add(uint8_t value) {
   unsigned const sum = reg_A + value + flag_C;
   flag_C = sum > 0xff;
   flag_O = (~(reg_A ^ value) & (reg_A ^ sum) & 0x80) >> 7;
   reg_A = (uint8_t)sum;
-  check_N_Z(reg_A);
+  checkNZ(reg_A);
 }
 
-void Emulator::sub(uint8_t value) {
+void MOS6502::sub(uint8_t value) {
   add(~value);
 }
 
-void Emulator::compare(uint16_t reg, uint16_t num) {
+void MOS6502::compare(uint16_t reg, uint16_t num) {
   uint16_t tmp = reg - (uint8_t)(num&0xff);
   flag_C = (tmp < 0x100);
   flag_N = (tmp & 0x80) != 0;

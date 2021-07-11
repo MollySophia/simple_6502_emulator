@@ -4,7 +4,7 @@ case INC_ZP: {
   if(data_bus <= 0xfe) data_bus++;
   else data_bus = 0x00;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(3);break;
 }
 case INC_ZPX: {
@@ -13,7 +13,7 @@ case INC_ZPX: {
   if(data_bus <= 0xfe) data_bus++;
   else data_bus = 0x00;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(4);break;
 }
 case INC_AB: {
@@ -23,7 +23,7 @@ case INC_AB: {
   if(data_bus <= 0xfe) data_bus++;
   else data_bus = 0x00;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(4);break;
 }
 case INC_ABX: {
@@ -33,7 +33,7 @@ case INC_ABX: {
   if(data_bus <= 0xfe) data_bus++;
   else data_bus = 0x00;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(5);break;
 }
 
@@ -43,7 +43,7 @@ case DEC_ZP: {
   if(data_bus >= 0x01) data_bus--;
   else data_bus = 0xff;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(3);break;
 }
 case DEC_ZPX: {
@@ -52,7 +52,7 @@ case DEC_ZPX: {
   if(data_bus >= 0x01) data_bus--;
   else data_bus = 0xff;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(4);break;
 }
 case DEC_AB: {
@@ -62,7 +62,7 @@ case DEC_AB: {
   if(data_bus >= 0x01) data_bus--;
   else data_bus = 0xff;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(4);break;
 }
 case DEC_ABX: {
@@ -72,6 +72,6 @@ case DEC_ABX: {
   if(data_bus >= 0x01) data_bus--;
   else data_bus = 0xff;
   writeByte(data_bus, addr_buf);
-  check_N_Z(data_bus);
+  checkNZ(data_bus);
   cycle(5);break;
 }

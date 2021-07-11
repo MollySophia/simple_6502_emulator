@@ -1,21 +1,21 @@
 case TAX: {
   reg_X = reg_A;
-  check_N_Z(reg_X);
+  checkNZ(reg_X);
   break;
 }
 case TAY: {
   reg_Y = reg_A;
-  check_N_Z(reg_Y);
+  checkNZ(reg_Y);
   break;
 }
 case TXA: {
   reg_A = reg_X;
-  check_N_Z(reg_A);
+  checkNZ(reg_A);
   break;
 }
 case TYA: {
   reg_A = reg_Y;
-  check_N_Z(reg_A);
+  checkNZ(reg_A);
   break;
 }
 case DEX: {
@@ -23,7 +23,7 @@ case DEX: {
     reg_X --;
   }
   else reg_X = 0xff;
-  check_N_Z(reg_X);
+  checkNZ(reg_X);
   break;
 }
 case INX: {
@@ -31,7 +31,7 @@ case INX: {
     reg_X ++;
   }
   else reg_X = 0x00;
-  check_N_Z(reg_X);
+  checkNZ(reg_X);
   break;
 }
 case DEY: {
@@ -39,7 +39,7 @@ case DEY: {
     reg_Y --;
   }
   else reg_Y = 0xff;
-  check_N_Z(reg_Y);
+  checkNZ(reg_Y);
   break;
 }
 case INY: {
@@ -47,6 +47,6 @@ case INY: {
     reg_Y ++;
   }
   else reg_Y = 0x00;
-  check_N_Z(reg_Y);
+  checkNZ(reg_Y);
   break;
 }
