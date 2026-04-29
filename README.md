@@ -41,7 +41,17 @@ RUN
 30 NEXT I
 40 END
 RUN
+10 DIM A$(10)
+20 LET A$="APPLE"
+30 PRINT A$
+40 PRINT A$(3)
+50 END
+RUN
 ```
+
+Apple BASIC treats any keypress during program execution as an interrupt, so
+when pasting commands interactively, wait for the `>` prompt after `RUN` before
+pasting the next command.
 
 Start A1-Assembler:
 

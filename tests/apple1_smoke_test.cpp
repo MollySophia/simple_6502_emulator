@@ -148,13 +148,21 @@ int main() {
                     "20 PRINT A\r"
                     "30 END\r"
                     "LIST\r"
-                    "RUN\r"
-                    "10 FOR I=1 TO 5\r"
+                    "RUN\r",
+                    {"HELLO", "   10 LET A=5", "\n5\n"}},
+                   {"10 FOR I=1 TO 5\r"
                     "20 PRINT I\r"
                     "30 NEXT I\r"
                     "40 END\r"
                     "RUN\r",
-                    {"HELLO", "   10 LET A=5", "\n5\n", "\n1\n2\n3\n4\n5\n"}}});
+                    {"\n1\n2\n3\n4\n5\n"}},
+                   {"10 DIM A$(10)\r"
+                    "20 LET A$=\"APPLE\"\r"
+                    "30 PRINT A$\r"
+                    "40 PRINT A$(3)\r"
+                    "50 END\r"
+                    "RUN\r",
+                    {"\nAPPLE\nPLE\n"}}});
 
   ok &= runStages("A1-Assembler",
                   {{"9000R\r"
@@ -166,7 +174,24 @@ int main() {
                     "SBASM\r",
                     {"A1-ASM V1.0", "$0280.$0285", "0 ERRORS"}},
                    {"XEC START\r",
-                    {"XEC START\nA\n%"}}});
+                    {"XEC START\nA\n%"}},
+                   {"1010 START\r"
+                    "1020    LDX #0\r"
+                    "1030 .1\r"
+                    "1040    LDA .3,X\r"
+                    "1050    BPL .2\r"
+                    "1060    JSR ECHO\r"
+                    "1070    INX\r"
+                    "1080    BNE .1\r"
+                    "1090 .2\r"
+                    "1100    ORA #%1000.0000\r"
+                    "1110    JMP ECHO\r"
+                    "1120 .3\r"
+                    "1130    .AT -/ABC/\r"
+                    "SBASM\r",
+                    {"$0280.$0294", "0 ERRORS"}},
+                   {"XEC START\r",
+                    {"XEC START\nABC\n%"}}});
 
   return ok ? 0 : 1;
 }
