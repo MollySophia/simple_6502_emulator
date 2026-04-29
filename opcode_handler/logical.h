@@ -38,14 +38,14 @@ case AND_ABY: {
 }
 case AND_INX: {
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   reg_A &= readByte(addr_buf);
   checkNZ(reg_A);
   cycle(4);break;
 }
 case AND_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   reg_A &= readByte(addr_buf);
   checkNZ(reg_A);
   cycle(3);break;
@@ -109,14 +109,14 @@ case EOR_ABY: {
 }
 case EOR_INX: {
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   reg_A ^= readByte(addr_buf);
   checkNZ(reg_A);
   cycle(4);break;
 }
 case EOR_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   reg_A ^= readByte(addr_buf);
   checkNZ(reg_A);
   cycle(3);break;
@@ -162,14 +162,14 @@ case ORA_ABY: {
 }
 case ORA_INX: {
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   reg_A |= readByte(addr_buf);
   checkNZ(reg_A);
   cycle(4);break;
 }
 case ORA_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   reg_A |= readByte(addr_buf);
   checkNZ(reg_A);
   cycle(3);break;

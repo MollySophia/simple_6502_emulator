@@ -28,13 +28,13 @@ case STA_ABY: {
 }
 case STA_INX: {
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   writeByte(reg_A, addr_buf);
   cycle(4);break;
 }
 case STA_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   writeByte(reg_A, addr_buf);
   cycle(4);break;
 }

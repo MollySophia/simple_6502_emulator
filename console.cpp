@@ -139,6 +139,7 @@ void Console::get_cursor(int* x, int* y) {
 }
 
 void set_color(int c) {
+  (void)c;
 #ifdef _WIN32
     HANDLE h;
     CONSOLE_SCREEN_BUFFER_INFO info;

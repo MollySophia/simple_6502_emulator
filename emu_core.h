@@ -4,6 +4,7 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 #include <fstream>
 using namespace std;
 
@@ -61,6 +62,8 @@ class MOS6502 {
 
     uint8_t readByte(uint16_t addr);
     uint16_t readWord(uint16_t addr);
+    uint16_t readWordZeroPage(uint8_t addr);
+    uint16_t readWordPageWrap(uint16_t addr);
     void writeByte(uint8_t data, uint16_t addr);
     void writeWord(uint16_t data, uint16_t addr);
 };

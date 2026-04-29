@@ -38,14 +38,14 @@ case ADC_ABY: {
 }
 case ADC_INX: {
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   uint16_t tmp = readByte(addr_buf);
   add(tmp);
   cycle(4);break;
 }
 case ADC_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   uint16_t tmp = readByte(addr_buf);
   add(tmp);
   cycle(3);break;
@@ -63,7 +63,7 @@ case SBC_ZP: {
   cycle(1);break;
 }
 case SBC_ZPX: {
-  addr_buf = (readByte(reg_PC++) + reg_X);
+  addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
   uint16_t tmp = readByte(addr_buf);
   sub(tmp);
   cycle(2);break;
@@ -90,15 +90,15 @@ case SBC_ABY: {
   cycle(2);break;
 }
 case SBC_INX: {
-  addr_buf = (readByte(reg_PC++) + reg_X);
-  addr_buf = readWord(addr_buf);
+  addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   uint16_t tmp = readByte(addr_buf);
   sub(tmp);
   cycle(4);break;
 }
 case SBC_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   uint16_t tmp = readByte(addr_buf);
   sub(tmp);
   cycle(3);break;

@@ -39,14 +39,14 @@ case LDA_ABY: { //LDA(Absolute,Y)
 }
 case LDA_INX: { //LDA Indirect,X ($44,X)
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   reg_A = readByte(addr_buf);
   checkNZ(reg_A);
   cycle(4);break;
 }
 case LDA_INY: { //LDA Indirect,Y ($44),Y
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   reg_A = readByte(addr_buf);
   checkNZ(reg_A);
   cycle(3);break;

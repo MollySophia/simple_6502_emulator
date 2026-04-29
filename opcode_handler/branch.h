@@ -1,6 +1,6 @@
 case BPL: {
   if(flag_N == 0) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
     cycle(1);
@@ -10,7 +10,7 @@ case BPL: {
 }
 case BMI: {
   if(flag_N == 1) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
     cycle(1);
@@ -20,7 +20,7 @@ case BMI: {
 }
 case BVC: {
   if(flag_O == 0) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
   }
@@ -30,7 +30,7 @@ case BVC: {
 }
 case BVS: {
   if(flag_O == 1) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
     cycle(1);
@@ -40,7 +40,7 @@ case BVS: {
 }
 case BCC: {
   if(flag_C == 0) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
     cycle(1);
@@ -50,7 +50,7 @@ case BCC: {
 }
 case BCS: {
   if(flag_C == 1) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
     cycle(1);
@@ -59,18 +59,18 @@ case BCS: {
   break;
 }
 case BNE: {
- if(flag_Z == 0) {
-   char offset = readByte(reg_PC);
-   //printf("Offset:%x\n", offset);
+  if(flag_Z == 0) {
+    int8_t offset = (int8_t)readByte(reg_PC);
+    //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
-   cycle(1);
- }
- else reg_PC++;
- break;
+    cycle(1);
+  }
+  else reg_PC++;
+  break;
 }
 case BEQ: {
   if(flag_Z == 1) {
-    char offset = readByte(reg_PC);
+    int8_t offset = (int8_t)readByte(reg_PC);
     //printf("Offset:%x\n", offset);
     reg_PC = reg_PC + offset + 1;
     cycle(1);

@@ -32,13 +32,13 @@ case CMP_ABY: {
 }
 case CMP_INX: {
   addr_buf = (readByte(reg_PC++) + reg_X) & 0xff;
-  addr_buf = readWord(addr_buf);
+  addr_buf = readWordZeroPage((uint8_t)addr_buf);
   compare(reg_A, readByte(addr_buf));
   cycle(4);break;
 }
 case CMP_INY: {
   addr_buf = readByte(reg_PC++);
-  addr_buf = readWord(addr_buf) + reg_Y;
+  addr_buf = readWordZeroPage((uint8_t)addr_buf) + reg_Y;
   compare(reg_A, readByte(addr_buf));
   cycle(3);break;
 }

@@ -1,7 +1,6 @@
 #include "opcodes.h"
 #include "emu_core.h"
 #include "console.h"
-#include <unistd.h>
 
 MOS6502::MOS6502(void) {
   memoryReadCallBack = NULL;
@@ -80,7 +79,7 @@ void MOS6502::step() {
 }
 
 void MOS6502::cycle(int t) {
-  usleep(t);
+  cycle_counter += t;
 }
 
 uint8_t MOS6502::logicShiftRight(uint8_t origin) {
@@ -107,25 +106,27 @@ void MOS6502::writeByte(uint8_t data, uint16_t addr) {
 }
 
 uint16_t MOS6502::readWord(uint16_t addr) {
-  uint8_t dataH = 0, dataL = 0;
-  if(memoryReadCallBack != NULL) {
-    memoryReadCallBack(addr, 1, &dataL);
-    memoryReadCallBack(addr + 1, 1, &dataH);
-    pin_RW = 1;
-    addr_bus = addr;
-  } else fprintf(stderr, "MOS6502: Error reading memory.\n");
+  uint8_t dataL = readByte(addr);
+  uint8_t dataH = readByte((uint16_t)(addr + 1));
+  return ((uint16_t)dataH << 8) | dataL;
+}
+
+uint16_t MOS6502::readWordZeroPage(uint8_t addr) {
+  uint8_t dataL = readByte(addr);
+  uint8_t dataH = readByte((uint8_t)(addr + 1));
+  return ((uint16_t)dataH << 8) | dataL;
+}
+
+uint16_t MOS6502::readWordPageWrap(uint16_t addr) {
+  uint16_t next_addr = (addr & 0xff00) | ((addr + 1) & 0x00ff);
+  uint8_t dataL = readByte(addr);
+  uint8_t dataH = readByte(next_addr);
   return ((uint16_t)dataH << 8) | dataL;
 }
 
 void MOS6502::writeWord(uint16_t data, uint16_t addr) {
-  if(memoryWriteCallBack != NULL) {
-    uint8_t dataH = (uint8_t)((data & 0xF0) >> 8);
-    uint8_t dataL = (uint8_t)(data & 0x0F);
-    memoryWriteCallBack(addr, 1, &dataL);
-    memoryWriteCallBack(addr + 1, 1, &dataH);
-    pin_RW = 0; //Write
-    addr_bus = addr;
-  } else fprintf(stderr, "MOS6502: Error writing memory.\n");
+  writeByte((uint8_t)(data & 0xff), addr);
+  writeByte((uint8_t)((data >> 8) & 0xff), (uint16_t)(addr + 1));
 }
 
 
@@ -159,15 +160,39 @@ uint8_t MOS6502::stackPop(void) {
 }
 
 void MOS6502::add(uint8_t value) {
-  unsigned const sum = reg_A + value + flag_C;
-  flag_C = sum > 0xff;
-  flag_O = (~(reg_A ^ value) & (reg_A ^ sum) & 0x80) >> 7;
-  reg_A = (uint8_t)sum;
+  unsigned const binary_sum = reg_A + value + flag_C;
+  flag_O = (~(reg_A ^ value) & (reg_A ^ binary_sum) & 0x80) != 0;
+
+  if(flag_D) {
+    unsigned bcd_sum = binary_sum;
+    if(((reg_A & 0x0f) + (value & 0x0f) + flag_C) > 9) bcd_sum += 0x06;
+    if(bcd_sum > 0x99) bcd_sum += 0x60;
+    flag_C = bcd_sum > 0xff;
+    reg_A = (uint8_t)bcd_sum;
+  } else {
+    flag_C = binary_sum > 0xff;
+    reg_A = (uint8_t)binary_sum;
+  }
+
   checkNZ(reg_A);
 }
 
 void MOS6502::sub(uint8_t value) {
-  add(~value);
+  unsigned const borrow = flag_C ? 0 : 1;
+  unsigned const binary_diff = reg_A - value - borrow;
+  flag_C = binary_diff < 0x100;
+  flag_O = ((reg_A ^ value) & (reg_A ^ binary_diff) & 0x80) != 0;
+
+  if(flag_D) {
+    unsigned bcd_diff = binary_diff;
+    if((reg_A & 0x0f) < ((value & 0x0f) + borrow)) bcd_diff -= 0x06;
+    if(binary_diff > 0x99) bcd_diff -= 0x60;
+    reg_A = (uint8_t)bcd_diff;
+  } else {
+    reg_A = (uint8_t)binary_diff;
+  }
+
+  checkNZ(reg_A);
 }
 
 void MOS6502::compare(uint16_t reg, uint16_t num) {

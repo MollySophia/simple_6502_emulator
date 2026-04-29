@@ -5,13 +5,14 @@ case JMP_AB: { // Jump(Absolute)
 }
 case JMP_IN: { // Jump(Indirect)
   addr_buf = readWord(reg_PC);
-  reg_PC = readWord(addr_buf);
+  reg_PC = readWordPageWrap(addr_buf);
   cycle(3);break;
 }
 
 case JSR_AB: {
-  stackPush((uint8_t)((reg_PC & 0xFF00) >> 8));
-  stackPush((uint8_t)((reg_PC + 1) & 0xff));
+  uint16_t return_addr = reg_PC + 1;
+  stackPush((uint8_t)((return_addr & 0xFF00) >> 8));
+  stackPush((uint8_t)(return_addr & 0xff));
   //printf("JSR push %x\n", reg_PC+1);
   reg_PC = readWord(reg_PC);
   cycle(4);break;
