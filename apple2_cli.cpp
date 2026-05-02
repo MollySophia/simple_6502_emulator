@@ -1,8 +1,10 @@
 #include "apple2_machine.h"
 
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 #include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
@@ -28,9 +30,38 @@ int main(int argc, char **argv) {
     return runSmokeTest() ? 0 : 1;
   }
 
-  if(argc == 3 && string(argv[1]) == "--rom") {
-    machine.loadRom(argv[2], 0xd000);
-  } else {
+  bool romLoaded = false;
+  for(int i = 1; i < argc; i++) {
+    string arg = argv[i];
+    if(arg == "--rom" && i + 1 < argc) {
+      if(!machine.loadSystemRom(argv[++i])) {
+        return 1;
+      }
+      romLoaded = true;
+    } else if(arg == "--disk1" && i + 1 < argc) {
+      if(!machine.loadDiskImage(argv[++i], 1)) {
+        return 1;
+      }
+    } else if(arg == "--disk2" && i + 1 < argc) {
+      if(!machine.loadDiskImage(argv[++i], 2)) {
+        return 1;
+      }
+    } else if(arg == "--slot6-rom" && i + 1 < argc) {
+      if(!machine.loadSlotRom(argv[++i], 6)) {
+        return 1;
+      }
+    } else if(arg == "--disk-rom-scaffold") {
+      machine.installDiskIIRomScaffold();
+    } else {
+      cerr << "usage: " << argv[0]
+           << " [--rom apple2.rom] [--disk1 disk.dsk] [--disk2 disk.dsk]"
+           << " [--slot6-rom rom.bin] [--disk-rom-scaffold]"
+           << endl;
+      return 1;
+    }
+  }
+
+  if(!romLoaded) {
     machine.installDemoRom();
   }
   machine.resetCpu();
@@ -107,13 +138,9 @@ void pollKeyboard(void) {
 
 void renderScreen(void) {
   fputs("\033[H\033[32m", stdout);
-  for(int row = 0; row < 24; row++) {
+  for(int row = 0; row < machine.displayRows(); row++) {
     for(int col = 0; col < 40; col++) {
-      if(machine.isTextMode() || (machine.isMixedMode() && row >= 20)) {
-        putc(machine.textCharAt(row, col), stdout);
-      } else {
-        putc(machine.loresCharAt(row, col), stdout);
-      }
+      putc(machine.displayCharAt(row, col), stdout);
     }
     putc('\n', stdout);
   }
@@ -154,14 +181,37 @@ bool runSmokeTest(void) {
 
   uint8_t dummy = 0;
   machine.memoryRead(0xc050, 1, &dummy);
-  if(machine.isTextMode()) {
+  if(machine.isTextMode() || machine.displayRows() != 48) {
     cerr << "Apple II CLI smoke test failed while switching to graphics" << endl;
     return false;
   }
 
-  machine.memoryWrite(machine.screenAddressForCell(0, 0), 1, (const uint8_t *)"\x7e");
+  machine.memoryWrite(machine.screenAddressForCell(0, 0), 1, (const uint8_t *)"\xde");
   if(machine.loresCharAt(0, 0) != 'E' || machine.loresCharAt(1, 0) != 'D') {
     cerr << "Apple II CLI smoke test failed while checking lores rendering" << endl;
+    return false;
+  }
+
+  machine.memoryRead(0xc055, 1, &dummy);
+  machine.memoryWrite(machine.screenAddressForCell(0, 0), 1, (const uint8_t *)"2");
+  if(machine.screenAddressForCell(0, 0) != 0x0800 ||
+     machine.screenByteAt(0, 0) != '2') {
+    cerr << "Apple II CLI smoke test failed while checking page 2" << endl;
+    return false;
+  }
+
+  machine.memoryRead(0xc054, 1, &dummy);
+  if(machine.screenAddressForCell(0, 0) != 0x0400 ||
+     machine.screenByteAt(0, 0) == '2') {
+    cerr << "Apple II CLI smoke test failed while returning to page 1" << endl;
+    return false;
+  }
+
+  machine.memoryRead(0xc050, 1, &dummy);
+  machine.memoryRead(0xc053, 1, &dummy);
+  if(machine.displayRows() != 44 || machine.isDisplayTextRow(39) ||
+     !machine.isDisplayTextRow(40)) {
+    cerr << "Apple II CLI smoke test failed while checking mixed mode" << endl;
     return false;
   }
 
@@ -180,6 +230,140 @@ bool runSmokeTest(void) {
   machine.handleHostKey('T');
   if(!machine.isTextMode()) {
     cerr << "Apple II CLI smoke test failed while using text hotkey" << endl;
+    return false;
+  }
+
+  machine.memoryRead(0xc0b0, 1, &dummy);
+  if(machine.slotAccessCount(3) != 1) {
+    cerr << "Apple II CLI smoke test failed while checking empty slot I/O" << endl;
+    return false;
+  }
+
+  machine.memoryRead(0xc0e1, 1, &dummy);
+  machine.memoryRead(0xc0e5, 1, &dummy);
+  machine.memoryRead(0xc0e9, 1, &dummy);
+  machine.memoryRead(0xc0eb, 1, &dummy);
+  machine.memoryRead(0xc0ed, 1, &dummy);
+  machine.memoryRead(0xc0ef, 1, &dummy);
+  if(machine.slotAccessCount(6) != 6 || !machine.diskPhaseOn(0) ||
+     !machine.diskPhaseOn(2) || !machine.diskMotorOn() ||
+     machine.diskDrive() != 2 || !machine.diskQ6() || !machine.diskQ7() ||
+     dummy != machine.diskDataLatch()) {
+    cerr << "Apple II CLI smoke test failed while checking Disk II slot I/O" << endl;
+    return false;
+  }
+
+  machine.memoryRead(0xc0e0, 1, &dummy);
+  machine.memoryRead(0xc0e8, 1, &dummy);
+  machine.memoryRead(0xc0ec, 1, &dummy);
+  machine.memoryRead(0xc0ee, 1, &dummy);
+  if(machine.diskPhaseOn(0) || machine.diskMotorOn() ||
+     machine.diskQ6() || machine.diskQ7()) {
+    cerr << "Apple II CLI smoke test failed while clearing Disk II switches" << endl;
+    return false;
+  }
+
+  vector<uint8_t> disk(35 * 16 * 256, 0x00);
+  disk[0] = 0x11;
+  disk[1] = 0x22;
+  disk[(1 * 16 * 256)] = 0x33;
+  disk[(34 * 16 * 256) + 4095] = 0x44;
+
+  const string diskPath = "build/apple2_smoke.dsk";
+  ofstream diskFile(diskPath.c_str(), ios::out | ios::binary);
+  diskFile.write((const char *)&disk[0], disk.size());
+  diskFile.close();
+
+  machine.reset();
+  if(!machine.loadDiskImage(diskPath, 1) || !machine.diskInserted(1)) {
+    cerr << "Apple II CLI smoke test failed while loading disk image" << endl;
+    return false;
+  }
+  machine.memoryRead(0xc0e9, 1, &dummy);
+  machine.memoryRead(0xc0ec, 1, &dummy);
+  if(dummy != 0x11) {
+    cerr << "Apple II CLI smoke test failed while reading first disk byte" << endl;
+    return false;
+  }
+  machine.memoryRead(0xc0ec, 1, &dummy);
+  if(dummy != 0x22) {
+    cerr << "Apple II CLI smoke test failed while advancing disk stream" << endl;
+    return false;
+  }
+  machine.memoryRead(0xc0e1, 1, &dummy);
+  machine.memoryRead(0xc0e3, 1, &dummy);
+  machine.memoryRead(0xc0e5, 1, &dummy);
+  if(machine.diskTrack() != 1) {
+    cerr << "Apple II CLI smoke test failed while stepping disk track" << endl;
+    return false;
+  }
+  machine.memoryRead(0xc0ec, 1, &dummy);
+  if(dummy != 0x33) {
+    cerr << "Apple II CLI smoke test failed while reading stepped disk track" << endl;
+    return false;
+  }
+
+  machine.reset();
+  machine.loadDiskImage(diskPath, 1);
+  machine.installDiskIIRomScaffold();
+  if(!machine.slotRomLoaded(6)) {
+    cerr << "Apple II CLI smoke test failed while installing slot ROM" << endl;
+    return false;
+  }
+  machine.memoryRead(0xc600, 1, &dummy);
+  if(dummy != 0xad) {
+    cerr << "Apple II CLI smoke test failed while reading slot ROM" << endl;
+    return false;
+  }
+  uint8_t overwrite = 0x00;
+  machine.memoryWrite(0xc600, 1, &overwrite);
+  machine.memoryRead(0xc600, 1, &dummy);
+  if(dummy != 0xad) {
+    cerr << "Apple II CLI smoke test failed while checking slot ROM write protect" << endl;
+    return false;
+  }
+
+  vector<uint8_t> rom(0x1000, 0xea);
+  rom[0x0000] = 0x4c; // JMP $c600
+  rom[0x0001] = 0x00;
+  rom[0x0002] = 0xc6;
+  rom[0x0ffc] = 0x00;
+  rom[0x0ffd] = 0xf0;
+
+  const string romPath = "build/apple2_smoke.rom";
+  ofstream romFile(romPath.c_str(), ios::out | ios::binary);
+  romFile.write((const char *)&rom[0], rom.size());
+  romFile.close();
+
+  machine.reset();
+  machine.loadDiskImage(diskPath, 1);
+  machine.installDiskIIRomScaffold();
+  if(!machine.loadSystemRom(romPath)) {
+    cerr << "Apple II CLI smoke test failed while loading system ROM" << endl;
+    return false;
+  }
+  machine.resetCpu();
+  for(int i = 0; i < 200; i++) {
+    machine.step();
+  }
+  const string slotMessage = "SLOT 6 DISK ROM";
+  for(size_t i = 0; i < slotMessage.size(); i++) {
+    if(machine.screenByteAt(0, (int)i) != (uint8_t)slotMessage[i]) {
+      cerr << "Apple II CLI smoke test failed while executing slot ROM" << endl;
+      return false;
+    }
+  }
+  if(machine.screenByteAt(1, 0) != 0x11) {
+    cerr << "Apple II CLI smoke test failed while slot ROM read disk data" << endl;
+    return false;
+  }
+
+  uint8_t original = 0;
+  machine.memoryRead(0xf000, 1, &original);
+  machine.memoryWrite(0xf000, 1, &overwrite);
+  machine.memoryRead(0xf000, 1, &dummy);
+  if(dummy != original) {
+    cerr << "Apple II CLI smoke test failed while checking ROM write protect" << endl;
     return false;
   }
 

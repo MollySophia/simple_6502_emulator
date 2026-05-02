@@ -67,30 +67,53 @@ pasting the next command.
 ## Apple II CLI
 
 ```sh
-./build/apple2_cli
+./build/apple2_cli [--rom path/to/apple2.rom] [--disk1 path/to/disk.dsk] [--disk2 path/to/disk.dsk] [--slot6-rom path/to/rom.bin]
 ```
 
 This is an early Apple II text-mode scaffold that works in a plain terminal. It
 implements:
 
 - an `Apple2Machine` core separated from the command-line frontend
-- 40x24 text page 1 rendering from `$0400-$07ff`
+- 40x24 text rendering from page 1 (`$0400-$07ff`) or page 2 (`$0800-$0bff`)
 - Apple II text page row addressing
 - keyboard latch at `$c000`
 - keyboard strobe clear at `$c010`
 - display soft switches `$c050-$c057`
-- command-line lo-res rendering approximation
+- command-line lo-res rendering as 40x48 text cells
+- mixed mode with 40 lo-res rows and the bottom 4 text rows
+- slot I/O dispatch for `$c080-$c0ff`
+- a minimal slot 6 Disk II soft-switch scaffold
+- slot ROM mapping for `$c100-$c7ff`, including slot 6 at `$c600-$c6ff`
+- loading 140 KiB DOS-order `.dsk` images into drive 1 or drive 2
+- a simple current-track disk byte stream for early controller experiments
 - a built-in demo ROM that writes to the text page and echoes typed keys
 
 Press `Ctrl-C` to exit.
 
-You can also try booting an external ROM image at `$d000`:
+You can also try booting an external Apple II system ROM image and inserting
+disk images. ROM images up to 12 KiB are loaded into the high ROM area ending at
+`$ffff`; a 12 KiB image maps to `$d000-$ffff`, an 8 KiB image maps to
+`$e000-$ffff`, and a 4 KiB image maps to `$f000-$ffff`. The reset vector is then
+read from the loaded ROM:
 
 ```sh
-./build/apple2_cli --rom path/to/apple2.rom
+./build/apple2_cli --rom path/to/apple2.rom --disk1 path/to/dos33.dsk
 ```
 
-Full Apple II ROMs, hi-res artifact color, speaker, slots, and Disk II are not
+For debugging the slot 6 path without an Apple Disk II ROM, you can install the
+built-in scaffold ROM. It maps a tiny test ROM at `$c600`, turns on the Disk II
+motor, reads one byte from the current disk stream, writes it to text row 1, and
+prints a short message on row 0:
+
+```sh
+./build/apple2_cli --disk1 path/to/dos33.dsk --disk-rom-scaffold
+```
+
+The loaded system ROM area is read-only to emulated code. Slot 6 currently
+tracks Disk II phase, motor, drive, and Q6/Q7 soft-switch state. The current
+disk data path reads bytes from the selected 140 KiB image track in DOS sector
+order; it is not yet a full Disk II 6-and-2 nibble stream and does not write disk
+images. Hi-res artifact color, speaker, and full Disk II media emulation are not
 implemented yet.
 
 Start A1-Assembler:
@@ -114,4 +137,4 @@ make test
 
 This runs the bundled `ROM/6502_functional_test.bin` against the CPU core,
 smoke-tests Woz Monitor, Integrated BASIC, and A1-Assembler, and runs the
-Apple II CLI text/keyboard/soft-switch smoke test.
+Apple II CLI text/keyboard/soft-switch/slot/system-ROM smoke test.
