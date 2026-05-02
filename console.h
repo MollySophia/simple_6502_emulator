@@ -1,5 +1,10 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 enum {
     COLOR_WHITE,
     COLOR_RED,

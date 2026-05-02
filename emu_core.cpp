@@ -1,6 +1,5 @@
 #include "opcodes.h"
 #include "emu_core.h"
-#include "console.h"
 
 MOS6502::MOS6502(void) {
   memoryReadCallBack = NULL;

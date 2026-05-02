@@ -5,21 +5,41 @@ Work-in-progress
 ## Build
 
 ```sh
-make
+cmake -S . -B build
+cmake --build build
 ```
 
-The emulator binary is written to `build/emu`.
+The emulator binary is written to `build/bin/emu`.
 
 To build the experimental Apple II command-line frontend:
 
 ```sh
-make apple2_cli
+cmake --build build --target apple2_cli
 ```
+
+The Apple II CLI binary is written to `build/bin/apple2_cli`.
+
+On Windows, run the commands from a Visual Studio Developer Command Prompt or
+initialize the toolchain first, for example:
+
+```cmd
+call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat" arm64
+cmake -S . -B build-msvc-arm64 -G "NMake Makefiles"
+cmake --build build-msvc-arm64
+```
+
+The Windows ARM64 binaries are written to `build-msvc-arm64\bin`.
 
 ## Run
 
 ```sh
-./build/emu
+./build/bin/emu
+```
+
+On Windows with the build directory from the example above:
+
+```cmd
+build-msvc-arm64\bin\emu.exe
 ```
 
 Press `Ctrl-C` to exit.
@@ -67,7 +87,13 @@ pasting the next command.
 ## Apple II CLI
 
 ```sh
-./build/apple2_cli [--rom path/to/apple2.rom] [--disk1 path/to/disk.dsk] [--disk2 path/to/disk.dsk] [--slot6-rom path/to/rom.bin]
+./build/bin/apple2_cli [--rom path/to/apple2.rom] [--disk1 path/to/disk.dsk] [--disk2 path/to/disk.dsk] [--slot6-rom path/to/rom.bin]
+```
+
+On Windows with the build directory from the example above:
+
+```cmd
+build-msvc-arm64\bin\apple2_cli.exe [--rom path\to\apple2.rom] [--disk1 path\to\disk.dsk] [--disk2 path\to\disk.dsk] [--slot6-rom path\to\rom.bin]
 ```
 
 This is an early Apple II text-mode scaffold that works in a plain terminal. It
@@ -97,7 +123,7 @@ disk images. ROM images up to 12 KiB are loaded into the high ROM area ending at
 read from the loaded ROM:
 
 ```sh
-./build/apple2_cli --rom path/to/apple2.rom --disk1 path/to/dos33.dsk
+./build/bin/apple2_cli --rom path/to/apple2.rom --disk1 path/to/dos33.dsk
 ```
 
 For debugging the slot 6 path without an Apple Disk II ROM, you can install the
@@ -106,7 +132,7 @@ motor, reads one byte from the current disk stream, writes it to text row 1, and
 prints a short message on row 0:
 
 ```sh
-./build/apple2_cli --disk1 path/to/dos33.dsk --disk-rom-scaffold
+./build/bin/apple2_cli --disk1 path/to/dos33.dsk --disk-rom-scaffold
 ```
 
 The loaded system ROM area is read-only to emulated code. Slot 6 currently
@@ -132,9 +158,10 @@ XEC START
 ## Test
 
 ```sh
-make test
+ctest --test-dir build --output-on-failure
 ```
 
-This runs the bundled `ROM/6502_functional_test.bin` against the CPU core,
-smoke-tests Woz Monitor, Integrated BASIC, and A1-Assembler, and runs the
-Apple II CLI text/keyboard/soft-switch/slot/system-ROM smoke test.
+This runs the bundled `ROM/6502_functional_test.bin` against the CPU core and
+smoke-tests Woz Monitor, Integrated BASIC, and A1-Assembler. When `apple2_cli`
+is built, it also runs the Apple II CLI text/keyboard/soft-switch/slot/system-ROM
+smoke test.

@@ -5,21 +5,32 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#ifdef _WIN32
+#include <conio.h>
+#include <windows.h>
+#else
 #include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
+#endif
 
 using namespace std;
 
 static Apple2Machine machine;
 static bool running = true;
+#ifdef _WIN32
+static DWORD old_output_mode = 0;
+static bool terminal_raw = false;
+#else
 static bool terminal_raw = false;
 static struct termios old_tm;
+#endif
 
 void setupTerminal(void);
 void restoreTerminal(void);
 void pollKeyboard(void);
 void renderScreen(void);
+void sleepForFrame(void);
 bool runSmokeTest(void);
 
 int main(int argc, char **argv) {
@@ -78,7 +89,7 @@ int main(int argc, char **argv) {
 
     if(machine.isScreenDirty() && (steps % 20000) == 0) {
       renderScreen();
-      usleep(16000);
+      sleepForFrame();
     }
   }
 
@@ -89,6 +100,24 @@ int main(int argc, char **argv) {
 }
 
 void setupTerminal(void) {
+#ifdef _WIN32
+  HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+  if(output == INVALID_HANDLE_VALUE) {
+    return;
+  }
+
+  DWORD mode = 0;
+  if(!GetConsoleMode(output, &mode)) {
+    return;
+  }
+
+  old_output_mode = mode;
+  mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  if(SetConsoleMode(output, mode)) {
+    terminal_raw = true;
+    atexit(restoreTerminal);
+  }
+#else
   struct termios tm;
   if(tcgetattr(STDIN_FILENO, &old_tm) < 0) {
     return;
@@ -100,17 +129,49 @@ void setupTerminal(void) {
     terminal_raw = true;
     atexit(restoreTerminal);
   }
+#endif
 }
 
 void restoreTerminal(void) {
+#ifdef _WIN32
+  if(terminal_raw) {
+    HANDLE output = GetStdHandle(STD_OUTPUT_HANDLE);
+    if(output != INVALID_HANDLE_VALUE) {
+      SetConsoleMode(output, old_output_mode);
+    }
+    terminal_raw = false;
+  }
+#else
   if(terminal_raw) {
     tcsetattr(STDIN_FILENO, TCSANOW, &old_tm);
     terminal_raw = false;
   }
+#endif
 }
 
 void pollKeyboard(void) {
   while(running) {
+#ifdef _WIN32
+    if(!_kbhit()) {
+      return;
+    }
+
+    int ch = _getch();
+    if(ch == 0 || ch == 0xe0) {
+      if(_kbhit()) {
+        (void)_getch();
+      }
+      continue;
+    }
+
+    uint8_t c = (uint8_t)ch;
+    if(c == 3) {
+      running = false;
+      return;
+    }
+
+    machine.handleHostKey(c);
+#else
     fd_set readfds;
     struct timeval timeout;
     FD_ZERO(&readfds);
@@ -133,7 +194,16 @@ void pollKeyboard(void) {
     }
 
     machine.handleHostKey(c);
+#endif
   }
+}
+
+void sleepForFrame(void) {
+#ifdef _WIN32
+  Sleep(16);
+#else
+  usleep(16000);
+#endif
 }
 
 void renderScreen(void) {
