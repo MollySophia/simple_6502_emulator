@@ -18,6 +18,7 @@ using namespace std;
 
 static Apple2Machine machine;
 static bool running = true;
+static const unsigned long kRenderIntervalSteps = 20000;
 #ifdef _WIN32
 static DWORD old_output_mode = 0;
 static bool terminal_raw = false;
@@ -80,15 +81,18 @@ int main(int argc, char **argv) {
   setupTerminal();
   fputs("\033[2J\033[?25l", stdout);
   fflush(stdout);
+  renderScreen();
 
   unsigned long steps = 0;
+  unsigned long next_render_step = kRenderIntervalSteps;
   while(running) {
     pollKeyboard();
     machine.step();
     steps++;
 
-    if(machine.isScreenDirty() && (steps % 20000) == 0) {
+    if(machine.isScreenDirty() && steps >= next_render_step) {
       renderScreen();
+      next_render_step = steps + kRenderIntervalSteps;
       sleepForFrame();
     }
   }
